@@ -6,7 +6,8 @@ const Store = require("electron-store");
 const fs = require("fs");
 const schedule = require("node-schedule");
 const store = new Store();
-const date = new Date();
+const AutoLaunch = require("auto-launch");
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 800,
@@ -15,21 +16,17 @@ function createWindow() {
       nodeIntegration: true,
     },
   });
-  try {
-    config.get();
-  } catch (err) {
-    if (err) {
-      win.loadFile("index.html");
-    }
-  }
+
+  win.loadFile("index.html");
 }
+let x = "";
 const main = async (withHome, alreadyInitialized, schedule) => {
   if (!alreadyInitialized) {
     await pie.initialize(app);
   }
   const browser = await pie.connect(app, puppeteer);
   if (withHome) createWindow();
-  console.log(app.getPath("userData"));
+  console.log(app.getPath("documents"));
   if (store.get("username") && store.get("password") && schedule) {
     const window = new BrowserWindow();
     const url = "https://fyntunesol.greythr.com/";
@@ -37,6 +34,7 @@ const main = async (withHome, alreadyInitialized, schedule) => {
     const page = await pie.getPage(browser, window);
     try {
       await page.waitForSelector(".sidebar");
+      await page.waitForSelector("input");
       await page.$eval("input", (el) => el.focus());
       await page.keyboard.type(store.get("username"));
       await page.keyboard.press("Tab");
@@ -44,14 +42,26 @@ const main = async (withHome, alreadyInitialized, schedule) => {
       await page.keyboard.press("Enter");
       await page.waitForSelector(".home-dashboard");
       await page.waitForSelector(".btn");
-      let x = await page.$eval(".btn", (el) => {
-        el.click();
-        return el.innerText;
+      x = await page.$eval(".btn", (el) => {
+        let y = el.innerText;
+        //el.click();
+        return y;
       });
       window.destroy();
-      console.log(x);
     } catch (error) {
-      console.log(error);
+      const date = new Date();
+      fs.appendFile(
+        app.getPath("documents") + "/attendance-log.txt",
+        `\n ${error} at ${date.getHours()}:${date.getMinutes()} on ${date.getDate()}/${
+          date.getMonth() + 1
+        }\n`,
+        (e) => {
+          if (e) {
+            console.log(e);
+          }
+        }
+      );
+      window.destroy();
     }
   }
 };
@@ -61,12 +71,21 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
-
+app.on("ready", () => {
+  let autoLaunch = new AutoLaunch({
+    name: "Your app name goes here",
+    path: app.getPath("exe"),
+  });
+  autoLaunch.isEnabled().then((isEnabled) => {
+    if (!isEnabled) autoLaunch.enable();
+  });
+});
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
+
 ipcMain.on("userDetails", (event, arg) => {
   console.log(arg);
   store.set("username", arg.username);
@@ -85,8 +104,10 @@ ipcMain.on("override", async (event, arg) => {
     let inner = await main(false, true, true);
 
     fs.appendFile(
-      app.getPath("userData") + "/log.txt",
-      `\n ${inner} at ${date.getHours()}:${date.getMinutes()} on ${date.getDate()}/${date.getMonth()}`,
+      app.getPath("documents") + "/attendance-log.txt",
+      `${x} at ${date.getHours()}:${date.getMinutes()} on ${date.getDate()}/${
+        date.getMonth() + 1
+      }\n`,
       (e) => {
         if (e) {
           console.log(e);
@@ -95,12 +116,14 @@ ipcMain.on("override", async (event, arg) => {
     );
   }
 });
-schedule.scheduleJob({ hour: 09, minute: 00 }, async () => {
+schedule.scheduleJob({ hour: 10, minute: 33 }, async () => {
   const date = new Date();
   let inner = await main(false, true, true);
   fs.appendFile(
-    app.getPath("userData") + "/log.txt",
-    `\n ${inner} at ${date.getHours()}:${date.getMinutes()} on ${date.getDate()}/${date.getMonth()}`,
+    app.getPath("documents") + "/attendance-log.txt",
+    `\n ${x} at ${date.getHours()}:${date.getMinutes()} on ${date.getDate()}/${
+      date.getMonth() + 1
+    }\n`,
     (e) => {
       if (e) {
         console.log(e);
@@ -112,8 +135,10 @@ schedule.scheduleJob({ hour: 19, minute: 00 }, async () => {
   const date = new Date();
   let inner = await main(false, true, true);
   fs.appendFile(
-    app.getPath("userData") + "/log.txt",
-    `\n ${inner} at ${date.getHours()}:${date.getMinutes()} on ${date.getDate()}/${date.getMonth()}`,
+    app.getPath("documents") + "/attendance-log.txt",
+    `\n ${x} at ${date.getHours()}:${date.getMinutes()} on ${date.getDate()}/${
+      date.getMonth() + 1
+    }\n`,
     (e) => {
       if (e) {
         console.log(e);
