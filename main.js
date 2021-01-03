@@ -24,9 +24,15 @@ const main = async (withHome, alreadyInitialized, schedule) => {
   if (!alreadyInitialized) {
     await pie.initialize(app);
   }
+  const date = new Date();
   const browser = await pie.connect(app, puppeteer);
   if (withHome) createWindow();
-  console.log(app.getPath("documents"));
+  if (
+    date.getDay() === 0 ||
+    (date.getDay() === 6 && Math.floor((date.getDate() - 1) / 7) % 2)
+  ) {
+    app.quit();
+  }
   if (store.get("username") && store.get("password") && schedule) {
     const window = new BrowserWindow();
     const url = "https://fyntunesol.greythr.com/";
@@ -44,7 +50,7 @@ const main = async (withHome, alreadyInitialized, schedule) => {
       await page.waitForSelector(".btn");
       x = await page.$eval(".btn", (el) => {
         let y = el.innerText;
-        //el.click();
+        el.click();
         return y;
       });
       window.destroy();
@@ -52,7 +58,7 @@ const main = async (withHome, alreadyInitialized, schedule) => {
       const date = new Date();
       fs.appendFile(
         app.getPath("documents") + "/attendance-log.txt",
-        `\n ${error} at ${date.getHours()}:${date.getMinutes()} on ${date.getDate()}/${
+        `${error} at ${date.getHours()}:${date.getMinutes()} on ${date.getDate()}/${
           date.getMonth() + 1
         }\n`,
         (e) => {
@@ -73,7 +79,7 @@ app.on("window-all-closed", () => {
 });
 app.on("ready", () => {
   let autoLaunch = new AutoLaunch({
-    name: "Your app name goes here",
+    name: "attendance-electron",
     path: app.getPath("exe"),
   });
   autoLaunch.isEnabled().then((isEnabled) => {
